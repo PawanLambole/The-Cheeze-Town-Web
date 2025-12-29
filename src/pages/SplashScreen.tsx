@@ -15,16 +15,16 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker flex flex-col items-center justify-center z-50 overflow-hidden">
+    <div className="fixed inset-0 h-[100dvh] bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker flex flex-col z-50 overflow-hidden">
       {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-brand-yellow/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute top-1/4 right-0 w-72 h-72 bg-brand-yellow/5 rounded-full blur-3xl animate-bounce animation-delay-200"></div>
         <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-brand-yellow/5 rounded-full blur-3xl animate-bounce animation-delay-400"></div>
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 flex flex-col items-center">
+      {/* Main Content Area - Centered Vertically */}
+      <div className="flex-1 flex flex-col items-center justify-center relative z-10 w-full px-4">
         {/* Logo Container */}
         <div className="mb-6 md:mb-8 animate-fade-in-up">
           <div className="relative group">
@@ -52,14 +52,17 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         </div>
       </div>
 
-      {/* Loading Progress Bar */}
-      <div className="absolute bottom-16 w-56 h-1 bg-brand-gray/30 rounded-full overflow-hidden animate-fade-in-up animation-delay-400 border border-brand-yellow/10">
-        <div className="h-full bg-gradient-to-r from-transparent via-brand-yellow to-transparent animate-[shimmer_2s_infinite] w-full"></div>
-      </div>
+      {/* Footer / Loading Area - Pinned to Bottom */}
+      <div className="relative z-10 w-full pb-8 md:pb-12 flex flex-col items-center gap-4">
+        {/* Loading Progress Bar */}
+        <div className="w-56 h-1 bg-brand-gray/30 rounded-full overflow-hidden animate-fade-in-up animation-delay-400 border border-brand-yellow/10">
+          <div className="h-full bg-gradient-to-r from-transparent via-brand-yellow to-transparent animate-[shimmer_2s_infinite] w-full"></div>
+        </div>
 
-      {/* Loading Text */}
-      <div className="absolute bottom-6 text-center animate-fade-in animation-delay-600">
-        <p className="text-gray-500 text-xs tracking-widest uppercase font-medium">Loading...</p>
+        {/* Loading Text */}
+        <div className="animate-fade-in animation-delay-600">
+          <p className="text-gray-500 text-xs tracking-widest uppercase font-medium">Loading...</p>
+        </div>
       </div>
     </div>
   );

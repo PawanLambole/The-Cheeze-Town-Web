@@ -25,35 +25,70 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
     setError(null);
 
     try {
-      // Prepare order items
+      // 1. Create order in Supabase first (status: pending)
       const orderItems = cart.map(item => ({
         menu_item_name: item.name,
         quantity: item.quantity,
         unit_price: item.price,
       }));
 
-      // Create order in database
-      const { data, error: orderError } = await customerDB.createOrder({
+      // NOTE: We used to create order here, but now we should verify if the user actually pays.
+      // However, to keep it simple and safe for now (and compatible with current DB structure):
+      // We will create the order as 'pending' first.
+
+      const { data: order, error: orderError } = await customerDB.createOrder({
         table_id: tableId,
         customer_name: customerName || undefined,
         items: orderItems,
       });
 
       if (orderError) {
-        console.error('Order creation error:', orderError);
-        throw new Error((orderError as any).message || 'Failed to create order. Please try again.');
+        throw new Error((orderError as any).message || 'Failed to initialize order.');
       }
 
-      console.log('Order created successfully:', data);
+      // 2. Initialize Razorpay Payment
+      const options: RazorpayOptions = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '',
+        amount: getTotalPrice() * 100, // Amount in paise
+        currency: 'INR',
+        name: 'The Cheeze Town',
+        description: `Order #${order.order_number}`,
+        image: '/logo.jpeg',
+        // method: {
+        //   upi: true,
+        //   card: true,
+        //   netbanking: true,
+        //   wallet: true,
+        // },
+        prefill: {
+          name: customerName,
+        },
+        theme: {
+          color: '#FFB800', // Brand yellow
+        },
+        handler: async (response) => {
+          console.log('Payment Successful:', response);
+          // 3. On Success: Clear cart and navigate
+          // Ideally, we should update the order status to 'paid' in the backend here.
+          // For now, we assume success as the order is already created.
+          clearCart();
+          onPaymentComplete(order.order_number);
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+            // Optional: You could cancel the order in DB or leave it as pending/abandoned
+            console.log('Payment cancelled by user');
+          }
+        }
+      };
 
-      // Clear cart after successful order
-      clearCart();
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
 
-      // Navigate to success page with the actual order number
-      onPaymentComplete(data.order_number);
     } catch (err: any) {
-      console.error('Payment error:', err);
-      setError(err.message || 'An error occurred. Please try again.');
+      console.error('Payment initialization error:', err);
+      setError(err.message || 'Failed to initialize payment. Please try again.');
       setIsProcessing(false);
     }
   };
@@ -112,7 +147,7 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
           {error && (
             <Alert
               type="error"
-              title="Order Error"
+              title="Payment Error"
               message={error}
               dismissible
               onClose={() => setError(null)}
@@ -134,9 +169,7 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
           {/* Info */}
           <div className="rounded-xl border border-white/10 bg-brand-gray/30 p-4 text-sm text-gray-300">
             <p>
-              After you confirm this order, our staff will prepare your food for table{' '}
-              <span className="text-brand-yellow font-semibold">#{tableId}</span>. Payment (cash, UPI or card) will be
-              handled directly at the restaurant.
+              Please review your order carefully. You will be redirected to Razorpay to verify your payment securely.
             </p>
           </div>
 
@@ -162,7 +195,7 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
               iconPosition="right"
               className="shadow-lg shadow-brand-yellow/20"
             >
-              {isProcessing ? 'Placing Order...' : 'Confirm Order'}
+              {isProcessing ? 'Processing...' : 'Pay Now'}
             </Button>
           </div>
         </Card>

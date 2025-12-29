@@ -11,6 +11,14 @@
     body {
         @apply bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker text-white;
         min-height: 100vh;
+        min-height: 100dvh;
+    }
+
+    /* Scale down UI for small phones */
+    @media (max-width: 380px) {
+        html {
+            font-size: 14px;
+        }
     }
 
     #root {
