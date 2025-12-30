@@ -132,7 +132,7 @@ export default function TableSelectionPage({ onTableSelected, onBack }: TableSel
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex gap-4 pt-8 border-t border-white/10">
+                            <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4 pt-8 border-t border-white/10">
                                 <Button
                                     onClick={onBack}
                                     variant="secondary"

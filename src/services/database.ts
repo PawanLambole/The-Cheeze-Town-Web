@@ -55,12 +55,32 @@ export const customerDB = {
     },
 
     /**
+     * Update table status
+     */
+    async updateTableStatus(tableId: number, status: 'available' | 'occupied' | 'reserved') {
+        try {
+            const { error } = await supabase
+                .from('restaurant_tables')
+                .update({ status })
+                .eq('id', tableId);
+
+            if (error) throw error;
+            return { error: null };
+        } catch (error) {
+            console.error('Error updating table status:', error);
+            return { error };
+        }
+    },
+
+    /**
      * Create a new order in the database
      */
     async createOrder(orderData: {
         table_id: number;
         customer_name?: string;
         items: Array<{ menu_item_name: string; quantity: number; unit_price: number }>;
+        status?: string;
+        paymentDetails?: any;
     }) {
         try {
             // Calculate total amount
@@ -91,17 +111,24 @@ export const customerDB = {
 
             const orderNumber = `WEB${nextNum}`;
 
+            // Prepare insert data - only include fields that exist in schema
+            const insertData: any = {
+                order_number: orderNumber,
+                table_id: orderData.table_id,
+                customer_name: orderData.customer_name || null,
+                status: orderData.status || 'pending',
+                total_amount: totalAmount,
+                order_time: new Date().toISOString(),
+            };
+
+            // Note: Payment details (payment_id, payment_gateway, payment_time) 
+            // are not included as they may not exist in the current schema
+            // The 'paid' status is sufficient to indicate successful payment
+
             // 1. Insert the order
             const { data: order, error: orderError } = await supabase
                 .from('orders')
-                .insert({
-                    order_number: orderNumber,
-                    table_id: orderData.table_id,
-                    customer_name: orderData.customer_name || null,
-                    status: 'pending',
-                    total_amount: totalAmount,
-                    order_time: new Date().toISOString(),
-                })
+                .insert(insertData)
                 .select()
                 .single();
 
@@ -122,10 +149,59 @@ export const customerDB = {
 
             if (itemsError) throw itemsError;
 
+            // 3. Insert payment record if payment details are provided
+            if (orderData.paymentDetails) {
+                const paymentData = {
+                    order_id: order.id,
+                    amount: totalAmount,
+                    status: 'success', // Assuming successful payment since createOrder is called after success
+                    transaction_id: orderData.paymentDetails.payment_id,
+                    // gateway: orderData.paymentDetails.gateway // Column not found in payments table
+                };
+
+                const { error: paymentError } = await supabase
+                    .from('payments')
+                    .insert(paymentData);
+
+                if (paymentError) {
+                    console.error('Error recording payment:', paymentError);
+                    // We don't throw here to avoid failing the whole order if payment log fails
+                    // But maybe we should log it prominently
+                }
+            }
+
             console.log('✅ Order created successfully:', order);
             return { data: order, error: null };
         } catch (error) {
             console.error('Error creating order:', error);
+            return { data: null, error };
+        }
+    },
+
+    /**
+     * Update order status (used for payment confirmation)
+     */
+    async updateOrderStatus(orderNumber: string, status: string, paymentDetails?: any) {
+        try {
+            const updateData: any = { status };
+
+            if (paymentDetails) {
+                updateData.payment_id = paymentDetails.payment_id;
+                updateData.payment_gateway = paymentDetails.gateway;
+                updateData.payment_time = new Date().toISOString();
+            }
+
+            const { data, error } = await supabase
+                .from('orders')
+                .update(updateData)
+                .eq('order_number', orderNumber)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error updating order status:', error);
             return { data: null, error };
         }
     },

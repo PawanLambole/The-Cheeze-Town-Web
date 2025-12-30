@@ -3,6 +3,7 @@ import { Shield, ChevronRight, User, ArrowLeft } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { customerDB } from '../services/database';
 import { Button, Card, Input, Alert } from '../components';
+import { RazorpayOptions } from '../types';
 
 interface PaymentPageProps {
   tableId: number;
@@ -25,59 +26,61 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
     setError(null);
 
     try {
-      // 1. Create order in Supabase first (status: pending)
-      const orderItems = cart.map(item => ({
-        menu_item_name: item.name,
-        quantity: item.quantity,
-        unit_price: item.price,
-      }));
-
-      // NOTE: We used to create order here, but now we should verify if the user actually pays.
-      // However, to keep it simple and safe for now (and compatible with current DB structure):
-      // We will create the order as 'pending' first.
-
-      const { data: order, error: orderError } = await customerDB.createOrder({
-        table_id: tableId,
-        customer_name: customerName || undefined,
-        items: orderItems,
-      });
-
-      if (orderError) {
-        throw new Error((orderError as any).message || 'Failed to initialize order.');
-      }
-
-      // 2. Initialize Razorpay Payment
+      // Prepare Razorpay options - NO ORDER CREATED YET
       const options: RazorpayOptions = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '',
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || '',
         amount: getTotalPrice() * 100, // Amount in paise
         currency: 'INR',
         name: 'The Cheeze Town',
-        description: `Order #${order.order_number}`,
+        description: 'Dine-in Order',
         image: '/logo.jpeg',
-        // method: {
-        //   upi: true,
-        //   card: true,
-        //   netbanking: true,
-        //   wallet: true,
-        // },
         prefill: {
           name: customerName,
         },
         theme: {
-          color: '#FFB800', // Brand yellow
+          color: '#FFB800',
         },
         handler: async (response) => {
           console.log('Payment Successful:', response);
-          // 3. On Success: Clear cart and navigate
-          // Ideally, we should update the order status to 'paid' in the backend here.
-          // For now, we assume success as the order is already created.
-          clearCart();
-          onPaymentComplete(order.order_number);
+
+          try {
+            // NOW Create the order with 'paid' status
+            const orderItems = cart.map(item => ({
+              menu_item_name: item.name,
+              quantity: item.quantity,
+              unit_price: item.price,
+            }));
+
+            const { data: order, error: orderError } = await customerDB.createOrder({
+              table_id: tableId,
+              customer_name: customerName || undefined,
+              items: orderItems,
+              status: 'paid',
+              paymentDetails: {
+                payment_id: response.razorpay_payment_id,
+                gateway: 'razorpay'
+              }
+            });
+
+            if (orderError) throw orderError;
+
+            // Mark table as occupied
+            if (tableId > 0) {
+              await customerDB.updateTableStatus(tableId, 'occupied');
+            }
+
+            // Clear cart and navigate
+            clearCart();
+            onPaymentComplete(order.order_number);
+
+          } catch (err: any) {
+            console.error('Error creating order after payment:', err);
+            setError('Payment successful, but failed to create order. Please show this to staff. Payment ID: ' + response.razorpay_payment_id);
+          }
         },
         modal: {
           ondismiss: () => {
             setIsProcessing(false);
-            // Optional: You could cancel the order in DB or leave it as pending/abandoned
             console.log('Payment cancelled by user');
           }
         }
@@ -169,12 +172,12 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
           {/* Info */}
           <div className="rounded-xl border border-white/10 bg-brand-gray/30 p-4 text-sm text-gray-300">
             <p>
-              Please review your order carefully. You will be redirected to Razorpay to verify your payment securely.
+              Please review your order carefully. You will be redirected to Razorpay to complete your payment securely.
             </p>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 pt-4 border-t border-white/10">
+          <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4 pt-4 border-t border-white/10">
             <Button
               onClick={onBack}
               variant="secondary"
