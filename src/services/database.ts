@@ -158,7 +158,7 @@ export const customerDB = {
                     transaction_id: orderData.paymentDetails.payment_id,
                     payment_method: 'razorpay', // Now we know this column exists
                     payment_date: new Date().toISOString(), // Found this column too
-                    processed_by: 'web_app',
+                    processed_by: null,
                     notes: `Gateway: ${orderData.paymentDetails.gateway}`
                 };
 
