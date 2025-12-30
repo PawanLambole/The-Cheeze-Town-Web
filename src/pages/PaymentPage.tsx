@@ -25,6 +25,14 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
     setIsProcessing(true);
     setError(null);
 
+    const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+    if (!razorpayKey) {
+      console.error('❌ Missing VITE_RAZORPAY_KEY_ID environment variable');
+      setError('Payment service configuration error. Please contact staff.');
+      setIsProcessing(false);
+      return;
+    }
+
     try {
       // Prepare Razorpay options - NO ORDER CREATED YET
       const options: RazorpayOptions = {

@@ -216,7 +216,7 @@ export const customerDB = {
                 event: '*',
                 schema: 'public',
                 table: 'menu_items',
-            }, payload => {
+            }, (payload: any) => {
                 console.log('Menu updated:', payload);
                 callback(payload);
             })
@@ -239,7 +239,7 @@ export const customerDB = {
                 event: '*',
                 schema: 'public',
                 table: 'tables',
-            }, payload => {
+            }, (payload: any) => {
                 console.log('Tables updated:', payload);
                 callback(payload);
             })
