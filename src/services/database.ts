@@ -154,9 +154,12 @@ export const customerDB = {
                 const paymentData = {
                     order_id: order.id,
                     amount: totalAmount,
-                    status: 'success', // Assuming successful payment since createOrder is called after success
+                    status: 'success',
                     transaction_id: orderData.paymentDetails.payment_id,
-                    // gateway: orderData.paymentDetails.gateway // Column not found in payments table
+                    payment_method: 'razorpay', // Now we know this column exists
+                    payment_date: new Date().toISOString(), // Found this column too
+                    processed_by: 'web_app',
+                    notes: `Gateway: ${orderData.paymentDetails.gateway}`
                 };
 
                 const { error: paymentError } = await supabase
@@ -165,8 +168,6 @@ export const customerDB = {
 
                 if (paymentError) {
                     console.error('Error recording payment:', paymentError);
-                    // We don't throw here to avoid failing the whole order if payment log fails
-                    // But maybe we should log it prominently
                 }
             }
 
