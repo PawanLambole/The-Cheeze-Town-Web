@@ -1,12 +1,12 @@
-import { Home, Clock, UtensilsCrossed } from 'lucide-react';
+import { PlusCircle, Clock, UtensilsCrossed } from 'lucide-react';
 import { Button, Card } from '../components';
 
 interface SuccessPageProps {
-  onBackToHome: () => void;
+  onOrderMore: () => void;
   orderNumber: string;
 }
 
-export default function SuccessPage({ onBackToHome, orderNumber }: SuccessPageProps) {
+export default function SuccessPage({ onOrderMore, orderNumber }: SuccessPageProps) {
   const estimatedTime = 15 + Math.floor(Math.random() * 6); // 15-20 min
 
   return (
@@ -58,14 +58,14 @@ export default function SuccessPage({ onBackToHome, orderNumber }: SuccessPagePr
         {/* Action Button */}
         <div>
           <Button
-            onClick={onBackToHome}
+            onClick={onOrderMore}
             fullWidth
             size="lg"
-            icon={<Home className="w-5 h-5" />}
+            icon={<PlusCircle className="w-5 h-5" />}
             iconPosition="left"
             className="shadow-2xl shadow-brand-yellow/30"
           >
-            Back to Home
+            Order More Items
           </Button>
         </div>
 

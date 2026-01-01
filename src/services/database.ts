@@ -180,6 +180,91 @@ export const customerDB = {
     },
 
     /**
+     * Add items to an existing order
+     */
+    async addItemsToOrder(orderData: {
+        orderNumber: string;
+        items: Array<{ menu_item_name: string; quantity: number; unit_price: number }>;
+        paymentDetails?: any;
+    }) {
+        try {
+            // Calculate total amount for new items
+            const newItemsTotal = orderData.items.reduce(
+                (sum, item) => sum + item.unit_price * item.quantity,
+                0
+            );
+
+            // Get the order first to get its ID
+            const { data: order, error: fetchError } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('order_number', orderData.orderNumber)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            // 1. Insert new order items
+            const orderItems = orderData.items.map(item => ({
+                order_id: order.id,
+                menu_item_name: item.menu_item_name,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total_price: item.unit_price * item.quantity,
+            }));
+
+            const { error: itemsError } = await supabase
+                .from('order_items')
+                .insert(orderItems);
+
+            if (itemsError) throw itemsError;
+
+            // 2. Update order total amount
+            const { error: updateError } = await supabase
+                .from('orders')
+                .update({
+                    total_amount: order.total_amount + newItemsTotal,
+                    // Optionally update status back to 'paid' if it was 'served' or something, 
+                    // but for now keeping it simple or maybe 'paid' is fine.
+                    // If the previous status was 'served', adding new items might theoretically 
+                    // make it 'pending' (for the new items), but the order level status is tricky.
+                    // However, for web orders, they are usually 'pending' -> 'delivered'.
+                    // Let's keep the status as is or ensure it's not 'cancelled'.
+                })
+                .eq('id', order.id);
+
+            if (updateError) throw updateError;
+
+            // 3. Insert new payment record
+            if (orderData.paymentDetails) {
+                const paymentData = {
+                    order_id: order.id,
+                    amount: newItemsTotal, // Only the amount for new items
+                    status: 'success',
+                    transaction_id: orderData.paymentDetails.payment_id,
+                    payment_method: 'razorpay',
+                    payment_date: new Date().toISOString(),
+                    processed_by: null,
+                    notes: `Gateway: ${orderData.paymentDetails.gateway} (Add-on)`
+                };
+
+                const { error: paymentError } = await supabase
+                    .from('payments')
+                    .insert(paymentData);
+
+                if (paymentError) {
+                    console.error('Error recording payment for add-on:', paymentError);
+                }
+            }
+
+            console.log('✅ Items added to order successfully:', orderData.orderNumber);
+            return { data: order, error: null };
+        } catch (error) {
+            console.error('Error adding items to order:', error);
+            return { data: null, error };
+        }
+    },
+
+    /**
      * Update order status (used for payment confirmation)
      */
     async updateOrderStatus(orderNumber: string, status: string, paymentDetails?: any) {

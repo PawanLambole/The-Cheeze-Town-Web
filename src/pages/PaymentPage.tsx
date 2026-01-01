@@ -7,11 +7,12 @@ import { RazorpayOptions } from '../types';
 
 interface PaymentPageProps {
   tableId: number;
+  orderNumber?: string;
   onPaymentComplete: (orderNumber: string) => void;
   onBack: () => void;
 }
 
-export default function PaymentPage({ tableId, onPaymentComplete, onBack }: PaymentPageProps) {
+export default function PaymentPage({ tableId, orderNumber, onPaymentComplete, onBack }: PaymentPageProps) {
   const { cart, getTotalPrice, clearCart } = useCart();
   const [customerName, setCustomerName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -40,7 +41,7 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
         amount: getTotalPrice() * 100, // Amount in paise
         currency: 'INR',
         name: 'The Cheeze Town',
-        description: 'Dine-in Order',
+        description: orderNumber ? `Add-on Order #${orderNumber}` : 'Dine-in Order',
         image: '/logo.jpeg',
         prefill: {
           name: customerName,
@@ -52,38 +53,57 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
           console.log('Payment Successful:', response);
 
           try {
-            // NOW Create the order with 'paid' status
             const orderItems = cart.map(item => ({
               menu_item_name: item.name,
               quantity: item.quantity,
               unit_price: item.price,
             }));
 
-            const { data: order, error: orderError } = await customerDB.createOrder({
-              table_id: tableId,
-              customer_name: customerName || undefined,
-              items: orderItems,
-              status: 'paid',
-              paymentDetails: {
-                payment_id: response.razorpay_payment_id,
-                gateway: 'razorpay'
-              }
-            });
+            let resultOrderNumber = orderNumber;
 
-            if (orderError) throw orderError;
+            if (orderNumber) {
+              // ADD TO EXISTING ORDER
+              const { error: addError } = await customerDB.addItemsToOrder({
+                orderNumber: orderNumber,
+                items: orderItems,
+                paymentDetails: {
+                  payment_id: response.razorpay_payment_id,
+                  gateway: 'razorpay'
+                }
+              });
 
-            // Mark table as occupied
+              if (addError) throw addError;
+            } else {
+              // CREATE NEW ORDER
+              const { data: order, error: orderError } = await customerDB.createOrder({
+                table_id: tableId,
+                customer_name: customerName || undefined,
+                items: orderItems,
+                status: 'paid',
+                paymentDetails: {
+                  payment_id: response.razorpay_payment_id,
+                  gateway: 'razorpay'
+                }
+              });
+
+              if (orderError) throw orderError;
+              resultOrderNumber = order.order_number;
+            }
+
+            // Mark table as occupied (idempotent)
             if (tableId > 0) {
               await customerDB.updateTableStatus(tableId, 'occupied');
             }
 
             // Clear cart and navigate
             clearCart();
-            onPaymentComplete(order.order_number);
+            if (resultOrderNumber) {
+              onPaymentComplete(resultOrderNumber);
+            }
 
           } catch (err: any) {
-            console.error('Error creating order after payment:', err);
-            setError('Payment successful, but failed to create order. Please show this to staff. Payment ID: ' + response.razorpay_payment_id);
+            console.error('Error processing order after payment:', err);
+            setError('Payment successful, but failed to update order system. Please show this to staff. Payment ID: ' + response.razorpay_payment_id);
           }
         },
         modal: {

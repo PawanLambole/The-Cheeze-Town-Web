@@ -102,12 +102,12 @@ function AppContent() {
     setCurrentPage('success');
   };
 
-  const handleBackToHome = () => {
-    setSelectedTableId(null);
-    setCurrentPage('home');
+  const handleBackToMenu = () => {
+    setCurrentPage('menu');
   };
 
-  const handleBackToMenu = () => {
+  const handleOrderMore = () => {
+    // Go back to menu, but KEEP the orderNumber and selectedTableId
     setCurrentPage('menu');
   };
 
@@ -168,11 +168,12 @@ function AppContent() {
         {currentPage === 'payment' && (
           <PaymentPage
             tableId={selectedTableId || 0} // Pass 0 if no table selected
+            orderNumber={orderNumber} // Pass existing order number if any
             onPaymentComplete={handlePaymentComplete}
             onBack={handleBackToMenu}
           />
         )}
-        {currentPage === 'success' && <SuccessPage onBackToHome={handleBackToHome} orderNumber={orderNumber} />}
+        {currentPage === 'success' && <SuccessPage onOrderMore={handleOrderMore} orderNumber={orderNumber} />}
         {currentPage === 'about' && <AboutPage onNavigate={handleNavigateToMenu} />}
         {currentPage === 'contact' && <ContactPage />}
         {currentPage === 'terms' && <TermsOfServicePage />}
