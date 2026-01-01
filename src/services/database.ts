@@ -218,17 +218,13 @@ export const customerDB = {
 
             if (itemsError) throw itemsError;
 
-            // 2. Update order total amount
+            // 2. Update order total amount and reset status to 'paid'
+            // Resetting status to 'paid' ensures the order reappears in the Chef's active view
             const { error: updateError } = await supabase
                 .from('orders')
                 .update({
                     total_amount: order.total_amount + newItemsTotal,
-                    // Optionally update status back to 'paid' if it was 'served' or something, 
-                    // but for now keeping it simple or maybe 'paid' is fine.
-                    // If the previous status was 'served', adding new items might theoretically 
-                    // make it 'pending' (for the new items), but the order level status is tricky.
-                    // However, for web orders, they are usually 'pending' -> 'delivered'.
-                    // Let's keep the status as is or ensure it's not 'cancelled'.
+                    status: 'paid', // vital: bring back to active queue
                 })
                 .eq('id', order.id);
 
