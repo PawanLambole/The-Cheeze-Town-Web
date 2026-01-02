@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage';
 import MenuPage from './pages/MenuPage';
 import TableSelectionPage from './pages/TableSelectionPage';
 import PaymentPage from './pages/PaymentPage';
+import ParcelDetailsPage, { ParcelDetails } from './pages/ParcelDetailsPage';
 import SuccessPage from './pages/SuccessPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
@@ -26,6 +27,7 @@ function AppContent() {
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [hasTableFromUrl, setHasTableFromUrl] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string>('');
+  const [parcelDetails, setParcelDetails] = useState<ParcelDetails | undefined>(undefined);
 
   // Secret key for decryption - matching the one used for encryption
   const SECRET_KEY = "CHEEZETOWN_SECRET";
@@ -83,13 +85,19 @@ function AppContent() {
   };
 
   const handlePlaceOrder = () => {
-    // If table was already selected via QR code, go directly to payment
-    // Otherwise, show table selection page
+    // If table was already selected via QR code, go directly to payment (Dine-in)
+    // If NO table selected (Direct link), go to Parcel Details
     if (selectedTableId) {
       setCurrentPage('payment');
     } else {
-      setCurrentPage('table-selection');
+      // Direct visit -> Parcel Flow
+      setCurrentPage('parcel-details');
     }
+  };
+
+  const handleParcelDetailsSubmit = (details: ParcelDetails) => {
+    setParcelDetails(details);
+    setCurrentPage('payment');
   };
 
   const handleTableSelected = (tableId: number) => {
@@ -134,9 +142,9 @@ function AppContent() {
 
   // Hide navigation/footer when:
   // - On splash screen
-  // - On table selection or payment screens
+  // - On table selection, parcel details, or payment screens
   // - User came from QR code (focused ordering mode)
-  const showNavAndFooter = currentPage !== 'splash' && currentPage !== 'table-selection' && currentPage !== 'payment' && !hasTableFromUrl;
+  const showNavAndFooter = currentPage !== 'splash' && currentPage !== 'table-selection' && currentPage !== 'parcel-details' && currentPage !== 'payment' && !hasTableFromUrl;
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
@@ -165,15 +173,32 @@ function AppContent() {
             onBack={handleBackToMenu}
           />
         )}
+        {currentPage === 'parcel-details' && (
+          <ParcelDetailsPage
+            onContinue={handleParcelDetailsSubmit}
+            onBack={handleBackToMenu}
+          />
+        )}
         {currentPage === 'payment' && (
           <PaymentPage
             tableId={selectedTableId || 0} // Pass 0 if no table selected
             orderNumber={orderNumber} // Pass existing order number if any
+            parcelDetails={parcelDetails} // Pass parcel details
             onPaymentComplete={handlePaymentComplete}
             onBack={handleBackToMenu}
           />
         )}
-        {currentPage === 'success' && <SuccessPage onOrderMore={handleOrderMore} orderNumber={orderNumber} />}
+        {currentPage === 'success' && (
+          <SuccessPage
+            onOrderMore={handleOrderMore}
+            onHome={() => {
+              setOrderNumber(''); // Clear order number
+              setCurrentPage('home'); // Go to home page
+            }}
+            orderNumber={orderNumber}
+            isParcel={!selectedTableId}
+          />
+        )}
         {currentPage === 'about' && <AboutPage onNavigate={handleNavigateToMenu} />}
         {currentPage === 'contact' && <ContactPage />}
         {currentPage === 'terms' && <TermsOfServicePage />}

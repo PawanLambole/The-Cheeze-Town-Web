@@ -1,12 +1,14 @@
-import { PlusCircle, Clock, UtensilsCrossed } from 'lucide-react';
+import { PlusCircle, Clock, UtensilsCrossed, Home } from 'lucide-react';
 import { Button, Card } from '../components';
 
 interface SuccessPageProps {
   onOrderMore: () => void;
+  onHome?: () => void;
   orderNumber: string;
+  isParcel?: boolean;
 }
 
-export default function SuccessPage({ onOrderMore, orderNumber }: SuccessPageProps) {
+export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel }: SuccessPageProps) {
   const estimatedTime = 15 + Math.floor(Math.random() * 6); // 15-20 min
 
   return (
@@ -15,7 +17,7 @@ export default function SuccessPage({ onOrderMore, orderNumber }: SuccessPagePro
         {/* Success Message */}
         <div className="text-center mb-6 md:mb-10">
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold font-serif text-transparent bg-clip-text bg-gradient-to-r from-brand-yellow to-yellow-300 mb-2 md:mb-3">
-            Order Confirmed!
+            {isParcel ? 'Order Placed!' : 'Order Confirmed!'}
           </h1>
           <p className="text-gray-400 text-sm md:text-lg">Thank you for choosing The Cheeze Town</p>
         </div>
@@ -51,28 +53,45 @@ export default function SuccessPage({ onOrderMore, orderNumber }: SuccessPagePro
           {/* Info Box */}
           <div className="bg-brand-yellow/5 border border-brand-yellow/20 rounded-xl p-3 md:p-4 text-center">
             <p className="text-gray-300 font-medium mb-1 text-sm md:text-base">Our kitchen team is working on your delicious order</p>
-            <p className="text-gray-500 text-xs md:text-sm">We'll notify you when it's ready to serve</p>
+            <p className="text-gray-500 text-xs md:text-sm">
+              {isParcel ? "We'll have it ready for pickup shortly" : "We'll notify you when it's ready to serve"}
+            </p>
           </div>
         </Card>
 
         {/* Action Button */}
         <div>
-          <Button
-            onClick={onOrderMore}
-            fullWidth
-            size="lg"
-            icon={<PlusCircle className="w-5 h-5" />}
-            iconPosition="left"
-            className="shadow-2xl shadow-brand-yellow/30"
-          >
-            Order More Items
-          </Button>
+          {isParcel ? (
+            <Button
+              onClick={onHome}
+              fullWidth
+              size="lg"
+              icon={<Home className="w-5 h-5" />}
+              iconPosition="left"
+              className="shadow-2xl shadow-brand-yellow/30"
+            >
+              Go to Home
+            </Button>
+          ) : (
+            <Button
+              onClick={onOrderMore}
+              fullWidth
+              size="lg"
+              icon={<PlusCircle className="w-5 h-5" />}
+              iconPosition="left"
+              className="shadow-2xl shadow-brand-yellow/30"
+            >
+              Order More Items
+            </Button>
+          )}
         </div>
 
         {/* Footer Note */}
-        <p className="text-center text-gray-500 text-xs md:text-sm mt-4 md:mt-6">
-          Your table staff will bring your order as soon as it's ready
-        </p>
+        {!isParcel && (
+          <p className="text-center text-gray-500 text-xs md:text-sm mt-4 md:mt-6">
+            Your table staff will bring your order as soon as it's ready
+          </p>
+        )}
       </div>
     </div>
   );

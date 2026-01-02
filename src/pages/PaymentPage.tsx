@@ -5,14 +5,17 @@ import { customerDB } from '../services/database';
 import { Button, Card, Input, Alert } from '../components';
 import { RazorpayOptions } from '../types';
 
+import { ParcelDetails } from './ParcelDetailsPage';
+
 interface PaymentPageProps {
   tableId: number;
   orderNumber?: string;
+  parcelDetails?: ParcelDetails;
   onPaymentComplete: (orderNumber: string) => void;
   onBack: () => void;
 }
 
-export default function PaymentPage({ tableId, orderNumber, onPaymentComplete, onBack }: PaymentPageProps) {
+export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPaymentComplete, onBack }: PaymentPageProps) {
   const { cart, getTotalPrice, clearCart } = useCart();
   const [customerName, setCustomerName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -41,10 +44,11 @@ export default function PaymentPage({ tableId, orderNumber, onPaymentComplete, o
         amount: getTotalPrice() * 100, // Amount in paise
         currency: 'INR',
         name: 'The Cheeze Town',
-        description: orderNumber ? `Add-on Order #${orderNumber}` : 'Dine-in Order',
+        description: orderNumber ? `Add-on Order #${orderNumber}` : (tableId > 0 ? 'Dine-in Order' : 'Parcel Order'),
         image: '/logo.jpeg',
         prefill: {
-          name: customerName,
+          name: customerName || parcelDetails?.name,
+          contact: parcelDetails?.phone,
         },
         theme: {
           color: '#FFB800',
@@ -77,7 +81,11 @@ export default function PaymentPage({ tableId, orderNumber, onPaymentComplete, o
               // CREATE NEW ORDER
               const { data: order, error: orderError } = await customerDB.createOrder({
                 table_id: tableId,
-                customer_name: customerName || undefined,
+                customer_name: customerName || parcelDetails?.name || undefined,
+                phone_number: parcelDetails?.phone,
+                delivery_address: parcelDetails?.address,
+                order_type: tableId > 0 ? 'dine-in' : 'parcel',
+                notes: parcelDetails?.notes,
                 items: orderItems,
                 status: 'paid',
                 paymentDetails: {
@@ -103,7 +111,8 @@ export default function PaymentPage({ tableId, orderNumber, onPaymentComplete, o
 
           } catch (err: any) {
             console.error('Error processing order after payment:', err);
-            setError('Payment successful, but failed to update order system. Please show this to staff. Payment ID: ' + response.razorpay_payment_id);
+            console.error('Error processing order after payment:', err);
+            setError(`Payment successful, but failed to update order system. Error: ${err.message || JSON.stringify(err)}`);
           }
         },
         modal: {
@@ -149,10 +158,22 @@ export default function PaymentPage({ tableId, orderNumber, onPaymentComplete, o
         <Card glowing className="p-4 md:p-12 animate-fade-in-up space-y-6 md:space-y-8">
           {/* Order Summary */}
           <div className="bg-brand-gray/30 rounded-2xl p-4 md:p-6 border border-brand-yellow/20">
-            {tableId > 0 && (
+            {tableId > 0 ? (
               <>
                 <p className="text-gray-400 text-sm uppercase tracking-widest font-medium mb-2">Table Number</p>
                 <p className="text-3xl font-bold text-brand-yellow mb-6">#{tableId}</p>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-400 text-sm uppercase tracking-widest font-medium mb-2">Order Type</p>
+                <p className="text-3xl font-bold text-brand-yellow mb-6">Parcel / Online</p>
+                {parcelDetails && (
+                  <div className="mb-6 text-sm text-gray-300">
+                    <p><span className="text-gray-400">Name:</span> {parcelDetails.name}</p>
+                    <p><span className="text-gray-400">Phone:</span> {parcelDetails.phone}</p>
+                    <p><span className="text-gray-400">Address:</span> {parcelDetails.address}</p>
+                  </div>
+                )}
               </>
             )}
 

@@ -78,6 +78,10 @@ export const customerDB = {
     async createOrder(orderData: {
         table_id: number;
         customer_name?: string;
+        phone_number?: string;
+        delivery_address?: string;
+        order_type?: string;
+        notes?: string;
         items: Array<{ menu_item_name: string; quantity: number; unit_price: number }>;
         status?: string;
         paymentDetails?: any;
@@ -114,11 +118,15 @@ export const customerDB = {
             // Prepare insert data - only include fields that exist in schema
             const insertData: any = {
                 order_number: orderNumber,
-                table_id: orderData.table_id,
+                table_id: orderData.table_id > 0 ? orderData.table_id : null,
                 customer_name: orderData.customer_name || null,
                 status: orderData.status || 'pending',
                 total_amount: totalAmount,
                 order_time: new Date().toISOString(),
+                phone_number: orderData.phone_number || null,
+                delivery_address: orderData.delivery_address || null,
+                order_type: orderData.order_type || 'dine-in',
+                notes: orderData.notes || null
             };
 
             // Note: Payment details (payment_id, payment_gateway, payment_time) 

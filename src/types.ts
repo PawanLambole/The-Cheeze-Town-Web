@@ -25,6 +25,7 @@ export type Page =
   | 'home'
   | 'menu'
   | 'table-selection'
+  | 'parcel-details'
   | 'payment'
   | 'success'
   | 'about'
