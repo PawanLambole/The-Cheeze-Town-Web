@@ -91,7 +91,21 @@ export default function ContactPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2">Phone</h3>
-                  <p className="text-gray-400 mb-1 text-sm md:text-base">Call us for immediate assistance</p>
+                  <p className="text-gray-400 mb-2 text-sm md:text-base">Call us for immediate assistance</p>
+
+                  <div className="flex flex-col mb-4">
+                    <span className="text-gray-400 text-xs font-medium mb-0.5">Rahul Barve</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                      <a href="tel:+919823227596" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors text-base md:text-lg">
+                        9823227596
+                      </a>
+                      <span className="text-gray-500 hidden sm:inline">/</span>
+                      <a href="tel:+918767861283" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors text-base md:text-lg">
+                        8767861283
+                      </a>
+                    </div>
+                  </div>
+
                   <div className="flex flex-col">
                     <span className="text-gray-400 text-xs font-medium mb-0.5">Pavan Vitthal Lambole</span>
                     <a href="tel:+919766573966" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors text-base md:text-lg">
@@ -129,9 +143,9 @@ export default function ContactPage() {
                 <div className="flex-1">
                   <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2">Location</h3>
                   <p className="text-gray-400 leading-relaxed text-sm md:text-base">
-                    45, Prashant Nagar, Biladi Road,<br />
-                    Near 12 Feet Hanuman Mandir,<br />
-                    Deopur, Dhule, Maharashtra
+                    Infront of V.W.S College, <br />
+                    Near Sakri Road, <br />
+                    Dhule.
                   </p>
                 </div>
               </Card>
