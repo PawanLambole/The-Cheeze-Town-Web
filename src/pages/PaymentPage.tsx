@@ -21,6 +21,69 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const processOrderAfterPayment = async (response: any) => {
+    console.log('Payment Successful:', response);
+
+    try {
+      const orderItems = cart.map(item => ({
+        menu_item_name: item.name,
+        quantity: item.quantity,
+        unit_price: item.price,
+      }));
+
+      let resultOrderNumber = orderNumber;
+
+      if (orderNumber) {
+        // ADD TO EXISTING ORDER
+        const { error: addError } = await customerDB.addItemsToOrder({
+          orderNumber: orderNumber,
+          items: orderItems,
+          paymentDetails: {
+            payment_id: response.razorpay_payment_id,
+            gateway: 'razorpay'
+          }
+        });
+
+        if (addError) throw addError;
+      } else {
+        // CREATE NEW ORDER
+        const { data: order, error: orderError } = await customerDB.createOrder({
+          table_id: tableId,
+          customer_name: customerName || parcelDetails?.name || undefined,
+          phone_number: parcelDetails?.phone,
+          delivery_address: parcelDetails?.address,
+          order_type: tableId > 0 ? 'dine-in' : 'parcel',
+          notes: parcelDetails?.notes,
+          items: orderItems,
+          status: 'paid', // Mark as paid immediately
+          paymentDetails: {
+            payment_id: response.razorpay_payment_id,
+            gateway: 'razorpay'
+          }
+        });
+
+        if (orderError) throw orderError;
+        resultOrderNumber = order.order_number;
+      }
+
+      // Mark table as occupied (idempotent)
+      if (tableId > 0) {
+        await customerDB.updateTableStatus(tableId, 'occupied');
+      }
+
+      // Clear cart and navigate
+      clearCart();
+      if (resultOrderNumber) {
+        onPaymentComplete(resultOrderNumber);
+      }
+
+    } catch (err: any) {
+      console.error('Error processing order after payment:', err);
+      setError(`Payment successful, but failed to update order system. Error: ${err.message || JSON.stringify(err)}`);
+      setIsProcessing(false); // Make sure to stop processing state on error
+    }
+  };
+
   const handlePayment = async () => {
     if (!cart.length) {
       setError('Your cart is empty. Please add some items before placing an order.');
@@ -40,7 +103,7 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
     try {
       // Prepare Razorpay options - NO ORDER CREATED YET
       const options: RazorpayOptions = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || '',
+        key: razorpayKey,
         amount: getTotalPrice() * 100, // Amount in paise
         currency: 'INR',
         name: 'The Cheeze Town',
@@ -53,68 +116,7 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
         theme: {
           color: '#FFB800',
         },
-        handler: async (response) => {
-          console.log('Payment Successful:', response);
-
-          try {
-            const orderItems = cart.map(item => ({
-              menu_item_name: item.name,
-              quantity: item.quantity,
-              unit_price: item.price,
-            }));
-
-            let resultOrderNumber = orderNumber;
-
-            if (orderNumber) {
-              // ADD TO EXISTING ORDER
-              const { error: addError } = await customerDB.addItemsToOrder({
-                orderNumber: orderNumber,
-                items: orderItems,
-                paymentDetails: {
-                  payment_id: response.razorpay_payment_id,
-                  gateway: 'razorpay'
-                }
-              });
-
-              if (addError) throw addError;
-            } else {
-              // CREATE NEW ORDER
-              const { data: order, error: orderError } = await customerDB.createOrder({
-                table_id: tableId,
-                customer_name: customerName || parcelDetails?.name || undefined,
-                phone_number: parcelDetails?.phone,
-                delivery_address: parcelDetails?.address,
-                order_type: tableId > 0 ? 'dine-in' : 'parcel',
-                notes: parcelDetails?.notes,
-                items: orderItems,
-                status: 'paid',
-                paymentDetails: {
-                  payment_id: response.razorpay_payment_id,
-                  gateway: 'razorpay'
-                }
-              });
-
-              if (orderError) throw orderError;
-              resultOrderNumber = order.order_number;
-            }
-
-            // Mark table as occupied (idempotent)
-            if (tableId > 0) {
-              await customerDB.updateTableStatus(tableId, 'occupied');
-            }
-
-            // Clear cart and navigate
-            clearCart();
-            if (resultOrderNumber) {
-              onPaymentComplete(resultOrderNumber);
-            }
-
-          } catch (err: any) {
-            console.error('Error processing order after payment:', err);
-            console.error('Error processing order after payment:', err);
-            setError(`Payment successful, but failed to update order system. Error: ${err.message || JSON.stringify(err)}`);
-          }
-        },
+        handler: processOrderAfterPayment,
         modal: {
           ondismiss: () => {
             setIsProcessing(false);
@@ -249,6 +251,30 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
             >
               {isProcessing ? 'Processing...' : 'Pay Now'}
             </Button>
+          </div>
+
+          {/* TEST MODE BYPASS */}
+          <div className="mt-4 pt-4 border-t border-white/10 text-center">
+            <button
+              onClick={async () => {
+                setIsProcessing(true);
+                try {
+                  const mockResponse = {
+                    razorpay_payment_id: 'pay_test_' + Math.random().toString(36).substring(7),
+                    razorpay_order_id: 'order_test_' + Math.random().toString(36).substring(7),
+                    razorpay_signature: 'test_signature'
+                  };
+                  await processOrderAfterPayment(mockResponse);
+                } catch (err) {
+                  console.error("Test payment failed", err);
+                  setError("Test payment failed");
+                  setIsProcessing(false);
+                }
+              }}
+              className="text-xs text-brand-yellow/50 hover:text-brand-yellow hover:underline cursor-pointer"
+            >
+              [TEST MODE] Bypass Payment Gateway
+            </button>
           </div>
         </Card>
       </div>
