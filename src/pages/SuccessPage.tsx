@@ -46,11 +46,18 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
           event: 'UPDATE',
           schema: 'public',
           table: 'orders',
-          // REMOVED FILTER FOR DEBUGGING: filter: `order_number=eq.${orderNumber}`,
+          filter: `order_number=eq.${orderNumber}`,
         },
         (payload) => {
           console.log('Order update received:', payload);
-          const newStatus = payload.new.status;
+
+          // Double check to ensure it's the correct order (redundant with filter but safer)
+          if (String(payload.new.order_number) !== String(orderNumber)) {
+            console.log('Ignored update for different order:', payload.new.order_number);
+            return;
+          }
+
+          const newStatus = payload.new.status ? payload.new.status.toLowerCase() : '';
           setOrderStatus(newStatus);
 
           if (newStatus === 'ready' || newStatus === 'served') {
