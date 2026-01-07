@@ -58,7 +58,14 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`🔌 Subscription status for ${orderNumber}:`, status);
+        setIsConnected(status === 'SUBSCRIBED');
+
+        if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime channel error. Check connection or permissions.');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
