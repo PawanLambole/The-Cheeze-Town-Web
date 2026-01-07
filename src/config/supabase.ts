@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase Configuration for Customer Website
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://gnpdhisyxwqvnjleyola.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_l2p6m13fqhlAC4unPTnulg_gK69Qict';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     console.error('❌ Supabase configuration missing! Check your .env file.');
