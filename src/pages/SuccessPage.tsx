@@ -14,6 +14,7 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [estimatedTime] = useState(15 + Math.floor(Math.random() * 6)); // Default 15-20 min
   const [orderStatus, setOrderStatus] = useState<string>('pending');
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     // 1. Request Notification Permission on mount
@@ -45,7 +46,7 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
           event: 'UPDATE',
           schema: 'public',
           table: 'orders',
-          filter: `order_number=eq.${orderNumber}`,
+          // REMOVED FILTER FOR DEBUGGING: filter: `order_number=eq.${orderNumber}`,
         },
         (payload) => {
           console.log('Order update received:', payload);
@@ -106,7 +107,16 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
     <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker flex items-center justify-center p-3 md:p-4 relative overflow-hidden">
       <div className="max-w-lg w-full relative z-10">
         {/* Success Message */}
-        <div className="text-center mb-6 md:mb-10 animate-fade-in-down">
+        {/* Success Message */}
+        <div className="text-center mb-6 md:mb-10 animate-fade-in-down relative">
+          {/* Connection Status Indicator */}
+          <div className="absolute right-0 top-0 flex items-center gap-1.5 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-full border border-white/5">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+            <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
+              {isConnected ? 'Live' : 'Offline'}
+            </span>
+          </div>
+
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold font-serif text-transparent bg-clip-text bg-gradient-to-r from-brand-yellow to-yellow-300 mb-2 md:mb-3">
             {isParcel ? 'Order Placed!' : 'Order Confirmed!'}
           </h1>
