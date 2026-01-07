@@ -123,9 +123,8 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
           <div className="absolute right-0 top-0 flex items-center gap-1.5 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-full border border-white/5">
             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
             <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
-              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
-                {isConnected ? 'Live' : 'Offline'}
-              </span>
+              {isConnected ? 'Live' : 'Offline'}
+            </span>
           </div>
 
           {/* Test Notification Button (Hidden by default, visible on hover/tap for debug) */}
