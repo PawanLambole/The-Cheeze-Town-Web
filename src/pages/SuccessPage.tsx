@@ -1,5 +1,7 @@
-import { PlusCircle, Clock, UtensilsCrossed, Home } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { PlusCircle, Clock, UtensilsCrossed, Home, CheckCircle } from 'lucide-react';
 import { Button, Card } from '../components';
+import { supabase } from '../config/supabase';
 
 interface SuccessPageProps {
   onOrderMore: () => void;
@@ -9,13 +11,102 @@ interface SuccessPageProps {
 }
 
 export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel }: SuccessPageProps) {
-  const estimatedTime = 15 + Math.floor(Math.random() * 6); // 15-20 min
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [estimatedTime] = useState(15 + Math.floor(Math.random() * 6)); // Default 15-20 min
+  const [orderStatus, setOrderStatus] = useState<string>('pending');
+
+  useEffect(() => {
+    // 1. Request Notification Permission on mount
+    if ('Notification' in window) {
+      Notification.requestPermission();
+    }
+
+    // 2. Fetch initial status
+    const fetchStatus = async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('status')
+        .eq('order_number', orderNumber)
+        .single();
+
+      if (data) {
+        setOrderStatus(data.status);
+      }
+    };
+
+    fetchStatus();
+
+    // 3. Subscribe to Realtime Updates
+    const channel = supabase
+      .channel(`order_status_${orderNumber}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `order_number=eq.${orderNumber}`,
+        },
+        (payload) => {
+          console.log('Order update received:', payload);
+          const newStatus = payload.new.status;
+          setOrderStatus(newStatus);
+
+          if (newStatus === 'ready' || newStatus === 'served') {
+            triggerNotification();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [orderNumber]);
+
+  const triggerNotification = () => {
+    const message = "Your order is ready! Please collect it from the counter.";
+
+    // 1. Audio Notification
+    const audio = new Audio('/belli.m4a');
+    audio.play().catch(e => console.log('Audio autoplay prevented:', e));
+
+    // 2. System Notification (Screen Off support)
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const options: any = {
+        body: message,
+        icon: '/logo.jpeg',
+        vibrate: [200, 100, 200],
+        tag: 'order-ready'
+      };
+
+      // Use the service worker registration if available for better background handling on mobile
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(registration => {
+          registration.showNotification('Order Ready!', options);
+        });
+      } else {
+        // Fallback to standard notification
+        new Notification('Order Ready!', options);
+      }
+    }
+
+    // 3. Text-to-Speech
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const isReady = orderStatus === 'ready' || orderStatus === 'served';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker flex items-center justify-center p-3 md:p-4 relative overflow-hidden">
       <div className="max-w-lg w-full relative z-10">
         {/* Success Message */}
-        <div className="text-center mb-6 md:mb-10">
+        <div className="text-center mb-6 md:mb-10 animate-fade-in-down">
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold font-serif text-transparent bg-clip-text bg-gradient-to-r from-brand-yellow to-yellow-300 mb-2 md:mb-3">
             {isParcel ? 'Order Placed!' : 'Order Confirmed!'}
           </h1>
@@ -23,7 +114,7 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
         </div>
 
         {/* Order Details Card */}
-        <Card glowing className="p-4 md:p-8 mb-6 md:mb-8 space-y-4 md:space-y-6">
+        <Card glowing className="p-4 md:p-8 mb-6 md:mb-8 space-y-4 md:space-y-6 animate-fade-in-up">
           {/* Order Number */}
           <div className="bg-brand-gray/30 rounded-2xl p-4 md:p-6 border border-brand-yellow/30 text-center">
             <p className="text-gray-400 text-xs md:text-sm uppercase tracking-widest font-medium mb-1 md:mb-2">Order Number</p>
@@ -39,28 +130,44 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
               <UtensilsCrossed className="w-4 h-4 md:w-5 md:h-5 text-brand-yellow" />
               Preparation Status
             </h3>
-            <div className="bg-brand-gray/20 rounded-xl p-3 md:p-4">
+
+            <div className={`rounded-xl p-3 md:p-4 transition-colors duration-500 ${isReady ? 'bg-green-500/20 border border-green-500/30' : 'bg-brand-gray/20'}`}>
               <div className="flex items-center justify-between mb-3 md:mb-4">
-                <p className="text-gray-300 font-medium text-sm md:text-base">Your order is being prepared</p>
+                <p className={`font-medium text-sm md:text-base ${isReady ? 'text-green-400' : 'text-gray-300'}`}>
+                  {isReady ? 'Order Ready!' : 'Your order is being prepared'}
+                </p>
+                {isReady && <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-400 animate-bounce" />}
               </div>
-              <div className="flex items-center gap-2 md:gap-3 text-brand-yellow font-bold text-base md:text-lg">
-                <Clock className="w-4 h-4 md:w-5 md:h-5" />
-                <span>Estimated time: {estimatedTime} minutes</span>
-              </div>
+
+              {!isReady ? (
+                <div className="flex items-center gap-2 md:gap-3 text-brand-yellow font-bold text-base md:text-lg">
+                  <Clock className="w-4 h-4 md:w-5 md:h-5 animate-pulse" />
+                  <span>Estimated time: {estimatedTime} minutes</span>
+                </div>
+              ) : (
+                <div className="text-green-300 text-sm md:text-base animate-pulse">
+                  Please collect your order from the counter.
+                </div>
+              )}
             </div>
           </div>
 
           {/* Info Box */}
           <div className="bg-brand-yellow/5 border border-brand-yellow/20 rounded-xl p-3 md:p-4 text-center">
-            <p className="text-gray-300 font-medium mb-1 text-sm md:text-base">Our kitchen team is working on your delicious order</p>
+            <p className="text-gray-300 font-medium mb-1 text-sm md:text-base">
+              {isReady ? "Enjoy your meal!" : "Our kitchen team is working on your delicious order"}
+            </p>
             <p className="text-gray-500 text-xs md:text-sm">
-              {isParcel ? "We'll have it ready for pickup shortly" : "We'll notify you when it's ready to serve"}
+              {isParcel
+                ? (isReady ? "Ready for pickup" : "We'll have it ready for pickup shortly")
+                : (isReady ? "Served fresh!" : "We'll notify you when it's ready")
+              }
             </p>
           </div>
         </Card>
 
         {/* Action Button */}
-        <div>
+        <div className="animate-fade-in-up animation-delay-200">
           {isParcel ? (
             <Button
               onClick={onHome}
@@ -88,8 +195,8 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
 
         {/* Footer Note */}
         {!isParcel && (
-          <p className="text-center text-gray-500 text-xs md:text-sm mt-4 md:mt-6">
-            Your table staff will bring your order as soon as it's ready
+          <p className="text-center text-gray-500 text-xs md:text-sm mt-4 md:mt-6 animate-fade-in">
+            We will play a sound notification when your order is ready.
           </p>
         )}
       </div>
