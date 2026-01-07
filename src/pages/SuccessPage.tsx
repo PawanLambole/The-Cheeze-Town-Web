@@ -81,21 +81,24 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
 
     // 2. System Notification (Screen Off support)
     if ('Notification' in window && Notification.permission === 'granted') {
+      const uniqueTag = 'order-ready-' + Date.now(); // Unique tag to force new notification
       const options: any = {
         body: message,
         icon: '/logo.jpeg',
         vibrate: [200, 100, 200],
-        tag: 'order-ready'
+        tag: uniqueTag, // Changed from fixed tag to unique
+        renotify: true,  // Explicitly ask for re-notification (vibration/sound)
+        requireInteraction: true // Keep it on screen until user dismisses
       };
 
       // Use the service worker registration if available for better background handling on mobile
       if (navigator.serviceWorker && navigator.serviceWorker.ready) {
         navigator.serviceWorker.ready.then(registration => {
-          registration.showNotification('Order Ready!', options);
+          registration.showNotification('Order Ready! 🔔', options);
         });
       } else {
         // Fallback to standard notification
-        new Notification('Order Ready!', options);
+        new Notification('Order Ready! 🔔', options);
       }
     }
 
@@ -120,9 +123,19 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
           <div className="absolute right-0 top-0 flex items-center gap-1.5 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-full border border-white/5">
             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
             <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
-              {isConnected ? 'Live' : 'Offline'}
-            </span>
+              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
+                {isConnected ? 'Live' : 'Offline'}
+              </span>
           </div>
+
+          {/* Test Notification Button (Hidden by default, visible on hover/tap for debug) */}
+          <button
+            onClick={() => triggerNotification()}
+            className="absolute left-0 top-0 opacity-0 active:opacity-100 p-2 text-xs text-white bg-blue-500/50 rounded"
+          >
+            Test Bell
+          </button>
+
 
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold font-serif text-transparent bg-clip-text bg-gradient-to-r from-brand-yellow to-yellow-300 mb-2 md:mb-3">
             {isParcel ? 'Order Placed!' : 'Order Confirmed!'}
