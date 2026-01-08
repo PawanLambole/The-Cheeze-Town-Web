@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { PlusCircle, Clock, UtensilsCrossed, Home, CheckCircle } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { PlusCircle, Clock, UtensilsCrossed, Home, CheckCircle, Volume2 } from 'lucide-react';
 import { Button, Card } from '../components';
 import { supabase } from '../config/supabase';
 
@@ -11,13 +11,43 @@ interface SuccessPageProps {
 }
 
 export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel }: SuccessPageProps) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [estimatedTime] = useState(15 + Math.floor(Math.random() * 6)); // Default 15-20 min
   const [orderStatus, setOrderStatus] = useState<string>('pending');
   const [isConnected, setIsConnected] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioBlocked, setAudioBlocked] = useState(false);
 
   useEffect(() => {
-    // 1. Request Notification Permission on mount
+    // Initialize audio
+    audioRef.current = new Audio('/belli.m4a');
+    audioRef.current.load();
+
+    // Interaction Unlocker
+    const unlockAudio = () => {
+      if (audioRef.current) {
+        audioRef.current.play().then(() => {
+          audioRef.current?.pause();
+          audioRef.current!.currentTime = 0;
+          setAudioBlocked(false);
+        }).catch((e: any) => {
+          console.log("Audio unlock failed", e);
+        });
+      }
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
+
+    return () => {
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
+
+  useEffect(() => {
+    // 1. Request Notification Permission
     if ('Notification' in window) {
       Notification.requestPermission();
     }
@@ -46,32 +76,26 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
           event: 'UPDATE',
           schema: 'public',
           table: 'orders',
-          filter: `order_number=eq.${orderNumber}`,
         },
         (payload) => {
-          console.log('Order update received:', payload);
+          console.log('Update received:', payload);
 
-          // Double check to ensure it's the correct order (redundant with filter but safer)
-          if (String(payload.new.order_number) !== String(orderNumber)) {
-            console.log('Ignored update for different order:', payload.new.order_number);
-            return;
-          }
+          const receivedOrderNumber = String(payload.new.order_number);
+          const targetOrderNumber = String(orderNumber);
 
-          const newStatus = payload.new.status ? payload.new.status.toLowerCase() : '';
-          setOrderStatus(newStatus);
+          if (receivedOrderNumber === targetOrderNumber) {
+            const newStatus = payload.new.status ? payload.new.status.toLowerCase() : '';
+            setOrderStatus(newStatus);
 
-          if (newStatus === 'ready' || newStatus === 'served') {
-            triggerNotification();
+            if (newStatus === 'ready' || newStatus === 'served' || newStatus === 'completed') {
+              triggerNotification();
+            }
           }
         }
       )
       .subscribe((status) => {
-        console.log(`🔌 Subscription status for ${orderNumber}:`, status);
+        console.log(`Connection: ${status}`);
         setIsConnected(status === 'SUBSCRIBED');
-
-        if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Realtime channel error. Check connection or permissions.');
-        }
       });
 
     return () => {
@@ -80,31 +104,34 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
   }, [orderNumber]);
 
   const triggerNotification = () => {
-    const message = "Your order is ready! Please collect it from the counter.";
+    const message = "Your order is ready!";
 
     // 1. Audio Notification
-    const audio = new Audio('/belli.m4a');
-    audio.play().catch(e => console.log('Audio autoplay prevented:', e));
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch((e: any) => {
+        console.warn('Audio autoplay prevented:', e);
+        setAudioBlocked(true);
+      });
+    }
 
     // 2. System Notification (Screen Off support)
     if ('Notification' in window && Notification.permission === 'granted') {
-      const uniqueTag = 'order-ready-' + Date.now(); // Unique tag to force new notification
+      const uniqueTag = 'order-ready-' + Date.now();
       const options: any = {
         body: message,
         icon: '/logo.jpeg',
         vibrate: [200, 100, 200],
-        tag: uniqueTag, // Changed from fixed tag to unique
-        renotify: true,  // Explicitly ask for re-notification (vibration/sound)
-        requireInteraction: true // Keep it on screen until user dismisses
+        tag: uniqueTag,
+        renotify: true,
+        requireInteraction: true
       };
 
-      // Use the service worker registration if available for better background handling on mobile
       if (navigator.serviceWorker && navigator.serviceWorker.ready) {
         navigator.serviceWorker.ready.then(registration => {
           registration.showNotification('Order Ready! 🔔', options);
         });
       } else {
-        // Fallback to standard notification
         new Notification('Order Ready! 🔔', options);
       }
     }
@@ -118,12 +145,11 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
     }
   };
 
-  const isReady = orderStatus === 'ready' || orderStatus === 'served';
+  const isReady = orderStatus === 'ready' || orderStatus === 'served' || orderStatus === 'completed';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker flex items-center justify-center p-3 md:p-4 relative overflow-hidden">
       <div className="max-w-lg w-full relative z-10">
-        {/* Success Message */}
         {/* Success Message */}
         <div className="text-center mb-6 md:mb-10 animate-fade-in-down relative">
           {/* Connection Status Indicator */}
@@ -134,6 +160,21 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
             </span>
           </div>
 
+          {/* Audio unblock button if needed */}
+          {audioBlocked && (
+            <button
+              onClick={() => {
+                if (audioRef.current) {
+                  audioRef.current.play().catch(console.error);
+                  setAudioBlocked(false);
+                }
+              }}
+              className="absolute right-0 -top-12 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold animate-bounce flex items-center gap-1 shadow-lg z-50"
+            >
+              <Volume2 className="w-3 h-3" /> Enable Sound
+            </button>
+          )}
+
           {/* Test Notification Button (Hidden by default, visible on hover/tap for debug) */}
           <button
             onClick={() => triggerNotification()}
@@ -141,7 +182,6 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
           >
             Test Bell
           </button>
-
 
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold font-serif text-transparent bg-clip-text bg-gradient-to-r from-brand-yellow to-yellow-300 mb-2 md:mb-3">
             {isParcel ? 'Order Placed!' : 'Order Confirmed!'}
@@ -182,7 +222,10 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
                 </div>
               ) : (
                 <div className="text-green-300 text-sm md:text-base animate-pulse">
-                  Please collect your order from the counter.
+                  {isParcel
+                    ? "Please collect your order from the counter."
+                    : "Our staff will serve you at your table."
+                  }
                 </div>
               )}
             </div>
@@ -239,3 +282,4 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
     </div>
   );
 }
+

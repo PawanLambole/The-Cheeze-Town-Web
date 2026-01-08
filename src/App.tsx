@@ -36,6 +36,23 @@ function AppContent() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Check for persisted active order FIRST
+    const savedOrder = localStorage.getItem('activeOrder');
+    if (savedOrder) {
+      try {
+        const { orderNumber: savedOrderNum, tableId: savedTableId } = JSON.parse(savedOrder);
+        if (savedOrderNum) {
+          setOrderNumber(savedOrderNum);
+          setSelectedTableId(savedTableId);
+          setCurrentPage('success');
+          return; // Skip other checks if we are restoring an order
+        }
+      } catch (e) {
+        console.error("Failed to parse saved order", e);
+        localStorage.removeItem('activeOrder');
+      }
+    }
+
     const params = new URLSearchParams(window.location.search);
     const encryptedQ = params.get('q');
     let rawTableId: string | null = null;
@@ -72,6 +89,9 @@ function AppContent() {
   }, []);
 
   const handleSplashComplete = () => {
+    // If we are already on success page (from persistence), don't navigate away
+    if (currentPage === 'success') return;
+
     // If user came via table QR link, go directly to menu; otherwise go to home page
     if (hasTableFromUrl) {
       setCurrentPage('menu');
@@ -107,6 +127,11 @@ function AppContent() {
 
   const handlePaymentComplete = (orderNum: string) => {
     setOrderNumber(orderNum);
+    // Persist active order
+    localStorage.setItem('activeOrder', JSON.stringify({
+      orderNumber: orderNum,
+      tableId: selectedTableId
+    }));
     setCurrentPage('success');
   };
 
@@ -116,6 +141,9 @@ function AppContent() {
 
   const handleOrderMore = () => {
     // Go back to menu, but KEEP the orderNumber and selectedTableId
+    // We DON'T clear localStorage here as user might want to see success again?
+    // Actually, usually "Order More" implies a new phase or adding to existing.
+    // For now, let's keep it simple. If they complete another order, it updates.
     setCurrentPage('menu');
   };
 
@@ -144,7 +172,8 @@ function AppContent() {
   // - On splash screen
   // - On table selection, parcel details, or payment screens
   // - User came from QR code (focused ordering mode)
-  const showNavAndFooter = currentPage !== 'splash' && currentPage !== 'table-selection' && currentPage !== 'parcel-details' && currentPage !== 'payment' && !hasTableFromUrl;
+  // - On Success page (optional, but usually cleaner without nav)
+  const showNavAndFooter = currentPage !== 'splash' && currentPage !== 'table-selection' && currentPage !== 'parcel-details' && currentPage !== 'payment' && currentPage !== 'success' && !hasTableFromUrl;
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
@@ -192,6 +221,7 @@ function AppContent() {
           <SuccessPage
             onOrderMore={handleOrderMore}
             onHome={() => {
+              localStorage.removeItem('activeOrder'); // Clear persistence
               setOrderNumber(''); // Clear order number
               setCurrentPage('home'); // Go to home page
             }}
