@@ -37,7 +37,8 @@ function AppContent() {
     if (typeof window === 'undefined') return;
 
     // Check for persisted active order FIRST
-    const savedOrder = localStorage.getItem('activeOrder');
+    // Use sessionStorage so it survives reloads, but clears when the tab is closed.
+    const savedOrder = sessionStorage.getItem('activeOrder');
     if (savedOrder) {
       try {
         const { orderNumber: savedOrderNum, tableId: savedTableId } = JSON.parse(savedOrder);
@@ -49,6 +50,28 @@ function AppContent() {
         }
       } catch (e) {
         console.error("Failed to parse saved order", e);
+        sessionStorage.removeItem('activeOrder');
+      }
+    }
+
+    // Backward-compat: if older versions stored in localStorage, migrate once and clear.
+    const legacySavedOrder = localStorage.getItem('activeOrder');
+    if (legacySavedOrder) {
+      try {
+        const { orderNumber: legacyOrderNum, tableId: legacyTableId } = JSON.parse(legacySavedOrder);
+        if (legacyOrderNum) {
+          sessionStorage.setItem('activeOrder', JSON.stringify({
+            orderNumber: legacyOrderNum,
+            tableId: legacyTableId,
+          }));
+          localStorage.removeItem('activeOrder');
+          setOrderNumber(legacyOrderNum);
+          setSelectedTableId(legacyTableId);
+          setCurrentPage('success');
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to parse legacy saved order', e);
         localStorage.removeItem('activeOrder');
       }
     }
@@ -127,8 +150,8 @@ function AppContent() {
 
   const handlePaymentComplete = (orderNum: string) => {
     setOrderNumber(orderNum);
-    // Persist active order
-    localStorage.setItem('activeOrder', JSON.stringify({
+    // Persist active order (tab-scoped)
+    sessionStorage.setItem('activeOrder', JSON.stringify({
       orderNumber: orderNum,
       tableId: selectedTableId
     }));
@@ -221,7 +244,7 @@ function AppContent() {
           <SuccessPage
             onOrderMore={handleOrderMore}
             onHome={() => {
-              localStorage.removeItem('activeOrder'); // Clear persistence
+              sessionStorage.removeItem('activeOrder'); // Clear persistence
               setOrderNumber(''); // Clear order number
               setCurrentPage('home'); // Go to home page
             }}
