@@ -148,7 +148,7 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
   const isReady = orderStatus === 'ready' || orderStatus === 'served' || orderStatus === 'completed';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker flex items-center justify-center p-3 md:p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker flex flex-col items-center justify-center p-3 md:p-4 relative overflow-hidden">
       <div className="max-w-lg w-full relative z-10">
         {/* Success Message */}
         <div className="text-center mb-6 md:mb-10 animate-fade-in-down relative">
@@ -259,16 +259,26 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
               Go to Home
             </Button>
           ) : (
-            <Button
-              onClick={onOrderMore}
-              fullWidth
-              size="lg"
-              icon={<PlusCircle className="w-5 h-5" />}
-              iconPosition="left"
-              className="shadow-2xl shadow-brand-yellow/30"
-            >
-              Order More Items
-            </Button>
+            <div className="space-y-4">
+              <Button
+                onClick={onOrderMore}
+                fullWidth
+                size="lg"
+                icon={<PlusCircle className="w-5 h-5" />}
+                iconPosition="left"
+                className="shadow-2xl shadow-brand-yellow/30"
+              >
+                Order More Items
+              </Button>
+              {onHome && (
+                <button
+                  onClick={onHome}
+                  className="w-full text-center text-gray-400 text-sm hover:text-white transition-colors"
+                >
+                  Exit / Back to Home
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -280,6 +290,7 @@ export default function SuccessPage({ onOrderMore, onHome, orderNumber, isParcel
         )}
       </div>
     </div>
+
   );
 }
 

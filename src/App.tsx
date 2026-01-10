@@ -1,6 +1,7 @@
+
 import { useEffect, useState } from 'react';
 import { CartProvider, useCart } from './context/CartContext';
-import { NavigationBar, Footer } from './components';
+import { NavigationBar, Footer, OfferBanner } from './components';
 import SplashScreen from './pages/SplashScreen';
 import HomePage from './pages/HomePage';
 import MenuPage from './pages/MenuPage';
@@ -22,7 +23,7 @@ import enc from 'crypto-js/enc-utf8';
 // ... other imports ...
 
 function AppContent() {
-  const { cart } = useCart();
+  const { cart, isBannerVisible } = useCart();
   const [currentPage, setCurrentPage] = useState<Page>('splash');
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [hasTableFromUrl, setHasTableFromUrl] = useState(false);
@@ -201,6 +202,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <OfferBanner hasNavbar={showNavAndFooter} />
       {showNavAndFooter && (
         <NavigationBar
           activePage={getActivePage()}
@@ -209,7 +211,7 @@ function AppContent() {
         />
       )}
 
-      <main className={showNavAndFooter ? 'flex-1' : 'flex-1'}>
+      <main className={`flex-1 ${showNavAndFooter && isBannerVisible ? 'pt-10 md:pt-12' : ''}`}>
         {currentPage === 'splash' && <SplashScreen onComplete={handleSplashComplete} />}
         {currentPage === 'home' && <HomePage onNavigate={handleNavigateToMenu} />}
         {currentPage === 'menu' && (

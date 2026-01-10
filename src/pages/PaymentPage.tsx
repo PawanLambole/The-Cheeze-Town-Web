@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, ChevronRight, User, ArrowLeft } from 'lucide-react';
+import { Shield, ChevronRight, User, ArrowLeft, Ticket, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { customerDB } from '../services/database';
 import { Button, Card, Input, Alert } from '../components';
@@ -16,8 +16,9 @@ interface PaymentPageProps {
 }
 
 export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPaymentComplete, onBack }: PaymentPageProps) {
-  const { cart, getTotalPrice, clearCart } = useCart();
+  const { cart, getSubtotal, getDiscountAmount, getFinalPrice, applyCoupon, removeCoupon, appliedCoupon, couponError, activeOffer, clearCart } = useCart();
   const [customerName, setCustomerName] = useState('');
+  const [couponCode, setCouponCode] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +54,7 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
           phone_number: parcelDetails?.phone,
           delivery_address: parcelDetails?.address,
           order_type: tableId > 0 ? 'dine-in' : 'parcel',
-          notes: parcelDetails?.notes,
+          notes: (parcelDetails?.notes || '') + (appliedCoupon ? ` [Coupon: ${appliedCoupon}, Savings: ₹${getDiscountAmount().toFixed(0)}]` : ''),
           items: orderItems,
           status: 'paid', // Mark as paid immediately
           paymentDetails: {
@@ -104,7 +105,7 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
       // Prepare Razorpay options - NO ORDER CREATED YET
       const options: RazorpayOptions = {
         key: razorpayKey,
-        amount: getTotalPrice() * 100, // Amount in paise
+        amount: Math.round(getFinalPrice() * 100), // Amount in paise (rounded to avoid float issues)
         currency: 'INR',
         name: 'The Cheeze Town',
         description: orderNumber ? `Add-on Order #${orderNumber}` : (tableId > 0 ? 'Dine-in Order' : 'Parcel Order'),
@@ -191,9 +192,23 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
               ))}
             </div>
 
-            <div className="flex justify-between items-center">
-              <span className="text-2xl font-bold text-white">Total Amount</span>
-              <span className="text-4xl font-bold text-brand-yellow">₹{getTotalPrice()}</span>
+            <div className="border-t border-white/10 pt-4 space-y-2">
+              <div className="flex justify-between items-center text-gray-300">
+                <span>Subtotal</span>
+                <span>₹{getSubtotal().toFixed(0)}</span>
+              </div>
+
+              {appliedCoupon && (
+                <div className="flex justify-between items-center text-green-400 font-medium">
+                  <span>Discount ({activeOffer?.value}% OFF)</span>
+                  <span>-₹{getDiscountAmount().toFixed(0)}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                <span className="text-2xl font-bold text-white">Total Amount</span>
+                <span className="text-4xl font-bold text-brand-yellow">₹{getFinalPrice().toFixed(0)}</span>
+              </div>
             </div>
           </div>
 
@@ -219,6 +234,66 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
               placeholder="Enter your name for the order"
             />
           </div>
+
+          {/* Coupon Code Section */}
+          {activeOffer && (
+            <div className="bg-brand-gray/20 rounded-xl p-4 border border-white/5">
+              <label className="block text-gray-400 text-sm font-medium mb-2">Have a Coupon?</label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type="text"
+                    placeholder="Enter Coupon Code"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    className="uppercase"
+                    disabled={!!appliedCoupon}
+                    icon={<Ticket className="w-5 h-5" />}
+                  />
+                  {!appliedCoupon && !couponCode && activeOffer && (
+                    <button
+                      onClick={() => setCouponCode(activeOffer.code)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-[10px] md:text-xs font-bold bg-brand-yellow/20 text-brand-yellow px-2 py-1 rounded hover:bg-brand-yellow hover:text-brand-darker transition-all"
+                    >
+                      Use {activeOffer.code}
+                    </button>
+                  )}
+                </div>
+                {appliedCoupon ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      removeCoupon();
+                      setCouponCode('');
+                    }}
+                    className="bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/50"
+                  >
+                    Remove
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => applyCoupon(couponCode)}
+                    disabled={!couponCode}
+                    className="bg-brand-yellow text-brand-darker hover:bg-yellow-400"
+                  >
+                    Apply
+                  </Button>
+                )}
+              </div>
+              {couponError && (
+                <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
+                  <span className="block w-1.5 h-1.5 rounded-full bg-red-400" />
+                  {couponError}
+                </p>
+              )}
+              {appliedCoupon && (
+                <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
+                  <Check className="w-4 h-4" />
+                  Coupon applied successfully!
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Info */}
           <div className="rounded-xl border border-white/10 bg-brand-gray/30 p-4 text-sm text-gray-300">

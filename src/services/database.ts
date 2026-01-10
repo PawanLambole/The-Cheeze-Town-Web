@@ -85,13 +85,15 @@ export const customerDB = {
         items: Array<{ menu_item_name: string; quantity: number; unit_price: number }>;
         status?: string;
         paymentDetails?: any;
+        total_amount?: number; // Optional custom total (e.g. after discount)
     }) {
         try {
-            // Calculate total amount
-            const totalAmount = orderData.items.reduce(
+            // Calculate total amount (or use provided custom total)
+            const calculatedTotal = orderData.items.reduce(
                 (sum, item) => sum + item.unit_price * item.quantity,
                 0
             );
+            const totalAmount = orderData.total_amount !== undefined ? orderData.total_amount : calculatedTotal;
 
             // Generate sequential order number with WEB prefix
             let nextNum = 1;
