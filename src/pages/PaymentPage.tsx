@@ -235,10 +235,21 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
             />
           </div>
 
+
           {/* Coupon Code Section */}
           {activeOffer && (
             <div className="bg-brand-gray/20 rounded-xl p-3 border border-white/5">
-              <label className="block text-gray-400 text-xs font-medium mb-1">Have a Coupon?</label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="text-gray-400 text-xs font-medium">Have a Coupon?</label>
+                {!appliedCoupon && !couponCode && activeOffer && (
+                  <button
+                    onClick={() => setCouponCode(activeOffer.code)}
+                    className="text-[10px] font-bold bg-brand-yellow/20 text-brand-yellow px-2 py-0.5 rounded hover:bg-brand-yellow hover:text-brand-darker transition-all"
+                  >
+                    Use {activeOffer.code}
+                  </button>
+                )}
+              </div>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -250,14 +261,6 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
                     disabled={!!appliedCoupon}
                     icon={<Ticket className="w-5 h-5" />}
                   />
-                  {!appliedCoupon && !couponCode && activeOffer && (
-                    <button
-                      onClick={() => setCouponCode(activeOffer.code)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-[10px] grid place-items-center font-bold bg-brand-yellow/20 text-brand-yellow px-2 py-1 rounded hover:bg-brand-yellow hover:text-brand-darker transition-all"
-                    >
-                      Use {activeOffer.code}
-                    </button>
-                  )}
                 </div>
                 {appliedCoupon ? (
                   <Button
@@ -307,7 +310,7 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
             <Button
               onClick={onBack}
               variant="secondary"
-              size="lg"
+              // size="md" is default
               disabled={isProcessing}
               icon={<ArrowLeft className="w-4 h-4" />}
             >
@@ -316,7 +319,7 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
             <Button
               onClick={handlePayment}
               isLoading={isProcessing}
-              size="lg"
+              // size="md" is default
               disabled={isProcessing}
               icon={<ChevronRight className="w-4 h-4" />}
               iconPosition="right"
@@ -325,6 +328,7 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
               Pay Now
             </Button>
           </div>
+
         </Card>
       </div>
     </div>
