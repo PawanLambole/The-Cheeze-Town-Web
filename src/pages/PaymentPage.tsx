@@ -90,6 +90,20 @@ export default function PaymentPage({ tableId, orderNumber, parcelDetails, onPay
       setError('Your cart is empty. Please add some items before placing an order.');
       return;
     }
+
+    // Check if cart contains "Trail" item - Bypass Payment
+    const hasTrailItem = cart.some(item => item.name.toLowerCase() === 'trail');
+
+    if (hasTrailItem) {
+      console.log('Skipping payment for Trail item');
+      setIsProcessing(true);
+      await processOrderAfterPayment({
+        razorpay_payment_id: 'trail_bypass_' + Date.now(),
+        razorpay_order_id: 'trail_order_' + Date.now(),
+        razorpay_signature: 'trail_signature'
+      });
+      return;
+    }
     setIsProcessing(true);
     setError(null);
 
